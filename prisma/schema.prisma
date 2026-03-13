@@ -56,7 +56,11 @@ model User {
   reviews        Review[]
   wishlist       Wishlist[]
 
-  cart           Cart[]   // ADD THIS
+  cart           Cart[]
+
+  sellerWallet   SellerWallet?
+  walletTxns     WalletTransaction[]
+  payouts        Payout[]
 }
 
 //////////////////// NEXTAUTH MODELS ////////////////////
@@ -133,8 +137,9 @@ model Product {
   reviews     Review[]
   cartItems   CartItem[]
   orderItems  OrderItem[]
-  wishlists   Wishlist[]   // ADD THIS
+  wishlists   Wishlist[]
 }
+
 //////////////////// CART ////////////////////
 
 model Cart {
@@ -163,24 +168,64 @@ model Order {
 
   status     OrderStatus  @default(PENDING)
   total      Float
+
+  paymentId     String?
+  paymentStatus String?   @default("PENDING")
+
   createdAt  DateTime     @default(now())
 
   items      OrderItem[]
 }
 
 model OrderItem {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  orderId   String   @db.ObjectId
-  productId String   @db.ObjectId
-  quantity  Int
-  price     Float
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  orderId       String   @db.ObjectId
+  productId     String   @db.ObjectId
+  quantity      Int
+  price         Float
 
-  commission Float
+  commission    Float
   sellerRevenue Float
 
   order     Order    @relation(fields: [orderId], references: [id])
   product   Product  @relation(fields: [productId], references: [id])
 }
+
+//////////////////// SELLER WALLET ////////////////////
+
+model SellerWallet {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  sellerId  String   @unique @db.ObjectId
+  balance   Float    @default(0)
+
+  seller    User     @relation(fields: [sellerId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model WalletTransaction {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  sellerId  String   @db.ObjectId
+  orderId   String   @db.ObjectId
+  amount    Float
+  type      String
+  createdAt DateTime @default(now())
+
+  seller    User     @relation(fields: [sellerId], references: [id])
+}
+
+//////////////////// PAYOUT ////////////////////
+
+model Payout {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  sellerId  String   @db.ObjectId
+  amount    Float
+  status    String
+  createdAt DateTime @default(now())
+
+  seller    User     @relation(fields: [sellerId], references: [id])
+}
+
 //////////////////// REVIEW ////////////////////
 
 model Review {
@@ -206,4 +251,39 @@ model Wishlist {
 
   user      User     @relation(fields: [userId], references: [id])
   product   Product  @relation(fields: [productId], references: [id])
+}
+
+//////////////////// DELIVERY ////////////////////
+
+model DeliveryZone {
+  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  name              String
+  codAvailable      Boolean @default(true)
+  deliveryAvailable Boolean @default(true)
+  deliveryDays      Int
+}
+
+model PincodeZone {
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  pincode String @unique
+  zoneId  String
+}
+
+//////////////////// CHECKOUT SYSTEM ////////////////////
+
+model CheckoutSession {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  total     Float
+  status    String
+  createdAt DateTime @default(now())
+}
+
+model StockReservation {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  productId String   @db.ObjectId
+  userId    String   @db.ObjectId
+  quantity  Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }

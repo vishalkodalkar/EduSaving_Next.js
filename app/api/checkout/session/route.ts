@@ -1,25 +1,16 @@
 import { NextResponse } from "next/server";
-import { checkout } from "@/lib/services/checkout.service";
+import { createCheckoutSession } from "@/lib/services/checkoutSession.service";
 
 export async function POST(req: Request) {
-
   try {
 
     const { userId, pincode } = await req.json();
 
-    // Validate required fields
-    if (!userId || !pincode) {
-      return NextResponse.json({
-        success: false,
-        message: "userId and pincode are required"
-      });
-    }
-
-    const order = await checkout(userId, pincode);
+    const session = await createCheckoutSession(userId, pincode);
 
     return NextResponse.json({
       success: true,
-      data: order
+      data: session
     });
 
   } catch (error: any) {

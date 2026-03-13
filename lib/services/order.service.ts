@@ -2,11 +2,10 @@ import { prisma } from "@/lib/prisma";
 import { creditSellerWallet } from "@/lib/services/wallet.service";
 import { acquireLock, releaseLock } from "@/lib/services/inventoryLock.service";
 import { orderQueue } from "@/lib/queue/order.queue";
-import { razorpay } from "@/lib/razorpay";
 
 const COMMISSION_RATE = 0.10;
 
-export async function completeCheckout(userId: string, pincode: string) {
+export async function completeCheckout(userId: string) {
 
   const cart = await prisma.cart.findFirst({
     where: { userId },
@@ -23,20 +22,10 @@ export async function completeCheckout(userId: string, pincode: string) {
     throw new Error("Cart is empty");
   }
 
-  // ✅ PINCODE DELIVERY CHECK
-  const service = await prisma.pincodeService.findUnique({
-    where: { pincode }
-  });
-
-  if (!service || !service.deliveryAvailable) {
-    throw new Error("Delivery not available in this area");
-  }
-
   return await prisma.$transaction(async (tx) => {
 
     let total = 0;
 
-    // 1️⃣ Validate cart items + calculate total
     for (const item of cart.items) {
 
       if (!item.product) {
@@ -54,43 +43,34 @@ export async function completeCheckout(userId: string, pincode: string) {
       total += item.product.price * item.quantity;
     }
 
-    // 2️⃣ Create order
     const order = await tx.order.create({
       data: {
         userId,
         total,
-        status: "PENDING",
-        paymentStatus: "PENDING"
+        status: "CONFIRMED",
+        paymentStatus: "PAID"
       }
     });
 
-    // publish order event
     await orderQueue.add("order-created", {
       orderId: order.id,
-      userId: userId
+      userId
     });
 
-    // 3️⃣ Process items
     for (const item of cart.items) {
 
-      // 🔐 Acquire inventory lock
       const lock = await acquireLock(item.productId);
 
       if (!lock) {
-        throw new Error(
-          "Product is currently being purchased by another user. Please retry."
-        );
+        throw new Error("Product is currently locked");
       }
 
       try {
 
         const totalPrice = item.product.price * item.quantity;
-
         const commission = totalPrice * COMMISSION_RATE;
-
         const sellerRevenue = totalPrice - commission;
 
-        // create order item
         await tx.orderItem.create({
           data: {
             orderId: order.id,
@@ -102,22 +82,17 @@ export async function completeCheckout(userId: string, pincode: string) {
           }
         });
 
-        // reduce stock safely
         const product = await tx.product.update({
           where: { id: item.productId },
           data: {
-            stock: {
-              decrement: item.quantity
-            }
+            stock: { decrement: item.quantity }
           }
         });
 
-        // extra protection
         if (product.stock < 0) {
           throw new Error("Stock race condition detected");
         }
 
-        // credit seller wallet
         await creditSellerWallet(
           item.product.sellerId,
           order.id,
@@ -126,45 +101,15 @@ export async function completeCheckout(userId: string, pincode: string) {
         );
 
       } finally {
-
-        // 🔓 Release inventory lock
         await releaseLock(item.productId);
-
       }
-
     }
 
-    // 4️⃣ Clear cart
     await tx.cartItem.deleteMany({
-      where: {
-        cartId: cart.id
-      }
+      where: { cartId: cart.id }
     });
 
     return order;
 
   });
-}
-export async function createPayment(userId: string) {
-
-  const session = await prisma.checkoutSession.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" }
-  });
-
-  if (!session) {
-    throw new Error("Checkout session not found");
-  }
-
-  const order = await razorpay.orders.create({
-    amount: session.total * 100, // Razorpay uses paise
-    currency: "INR",
-    receipt: `receipt_${session.id}`,
-  });
-
-  return {
-    razorpayOrderId: order.id,
-    amount: order.amount,
-    currency: order.currency
-  };
 }
