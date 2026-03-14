@@ -27,4 +27,4 @@ const worker = new Worker(
   }
 );
 
-console.log("Order worker started...");
+console.log("Order worker started...");-[]

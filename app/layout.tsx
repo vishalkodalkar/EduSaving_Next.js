@@ -1,3 +1,10 @@
+import { startReservationExpiryWorker } from "@/lib/queue/reservationExpiry.worker";
+
+if (process.env.NODE_ENV === "development") {
+  startReservationExpiryWorker();
+}
+
+
 export default function RootLayout({
   children,
 }: {

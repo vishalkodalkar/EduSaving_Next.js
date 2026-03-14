@@ -280,10 +280,22 @@ model CheckoutSession {
 }
 
 model StockReservation {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  productId String   @db.ObjectId
-  userId    String   @db.ObjectId
-  quantity  Int
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  productId         String   @db.ObjectId
+  userId            String   @db.ObjectId
+  quantity          Int
+
+  checkoutSessionId String?  @db.ObjectId
+
+  status            ReservationStatus @default(ACTIVE)
+
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
 }
+
+enum ReservationStatus {
+  ACTIVE
+  COMPLETED
+  EXPIRED
+}
+ 
