@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { creditSellerWallet } from "@/lib/services/wallet.service";
 import { acquireLock, releaseLock } from "@/lib/services/inventoryLock.service";
 import { orderQueue } from "@/lib/queue/order.queue";
+import { createEscrowTransaction } from "@/lib/services/escrow.service";
 
 const COMMISSION_RATE = 0.10;
 
@@ -93,12 +94,12 @@ export async function completeCheckout(userId: string) {
           throw new Error("Stock race condition detected");
         }
 
-        await creditSellerWallet(
-          item.product.sellerId,
-          order.id,
-          item.product.price,
-          item.quantity
-        );
+        await createEscrowTransaction(
+        order.id,
+        item.product.sellerId,
+        sellerRevenue,
+        commission
+       );
 
       } finally {
         await releaseLock(item.productId);

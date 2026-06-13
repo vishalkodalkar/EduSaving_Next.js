@@ -175,6 +175,13 @@ model Order {
   createdAt  DateTime     @default(now())
 
   items      OrderItem[]
+  confirmedAt DateTime?
+  shippedAt DateTime?
+  deliveredAt DateTime?
+  cancelledAt DateTime?
+
+  trackingNumber String?
+
 }
 
 model OrderItem {
@@ -224,6 +231,23 @@ model Payout {
   createdAt DateTime @default(now())
 
   seller    User     @relation(fields: [sellerId], references: [id])
+}
+
+model EscrowTransaction {
+id          String @id @default(auto()) @map("_id") @db.ObjectId
+
+orderId     String @db.ObjectId
+sellerId    String @db.ObjectId
+
+amount      Float
+commission  Float
+
+status      EscrowStatus @default(HOLDING)
+
+releaseAt   DateTime
+releasedAt  DateTime?
+
+createdAt   DateTime @default(now())
 }
 
 //////////////////// REVIEW ////////////////////
@@ -298,4 +322,8 @@ enum ReservationStatus {
   COMPLETED
   EXPIRED
 }
- 
+ enum EscrowStatus {
+HOLDING
+RELEASED
+REFUNDED
+}
