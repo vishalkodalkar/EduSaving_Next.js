@@ -211,14 +211,14 @@ model SellerWallet {
 }
 
 model WalletTransaction {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  sellerId  String   @db.ObjectId
-  orderId   String   @db.ObjectId
+  id        String                @id @default(auto()) @map("_id") @db.ObjectId
+  sellerId  String                @db.ObjectId
+  orderId   String                @db.ObjectId
   amount    Float
-  type      String
-  createdAt DateTime @default(now())
+  type      WalletTransactionType
+  createdAt DateTime              @default(now())
 
-  seller    User     @relation(fields: [sellerId], references: [id])
+  seller    User                  @relation(fields: [sellerId], references: [id])
 }
 
 //////////////////// PAYOUT ////////////////////
@@ -280,19 +280,22 @@ model Wishlist {
 //////////////////// DELIVERY ////////////////////
 
 model DeliveryZone {
-  id                String  @id @default(auto()) @map("_id") @db.ObjectId
+  id                String @id @default(auto()) @map("_id") @db.ObjectId
   name              String
   codAvailable      Boolean @default(true)
   deliveryAvailable Boolean @default(true)
   deliveryDays      Int
+
+  pincodes          PincodeZone[]
 }
 
 model PincodeZone {
-  id      String @id @default(auto()) @map("_id") @db.ObjectId
-  pincode String @unique
-  zoneId  String
-}
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  pincode  String @unique
 
+  zoneId   String @db.ObjectId
+  zone     DeliveryZone @relation(fields: [zoneId], references: [id])
+}
 //////////////////// CHECKOUT SYSTEM ////////////////////
 
 model CheckoutSession {
@@ -326,4 +329,11 @@ enum ReservationStatus {
 HOLDING
 RELEASED
 REFUNDED
+}
+enum WalletTransactionType {
+  CREDIT
+  DEBIT
+  ESCROW_RELEASE
+  REFUND
+  PAYOUT
 }

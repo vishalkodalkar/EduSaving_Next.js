@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { checkout } from "@/lib/services/checkout.service";
+import { completeCheckout } from "@/lib/services/checkout.service";
+
 
 export async function POST(req: Request) {
 
@@ -15,7 +16,7 @@ export async function POST(req: Request) {
       });
     }
 
-    const order = await checkout(userId, pincode);
+    const order = await  completeCheckout(userId, pincode);
 
     return NextResponse.json({
       success: true,

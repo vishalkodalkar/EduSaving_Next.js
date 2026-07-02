@@ -29,7 +29,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Razorpay refund
-    await razorpay.payments.refund(order.paymentId!);
+   await razorpay.payments.refund(order.paymentId!, {
+  amount: Math.round(order.total * 100),
+});
 
     for (const item of order.items) {
 

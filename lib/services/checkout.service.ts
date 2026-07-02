@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { creditSellerWallet } from "@/lib/services/wallet.service";
+import { createEscrowTransaction } from "@/lib/services/escrow.service";
 import { acquireLock, releaseLock } from "@/lib/services/inventoryLock.service";
 import { orderQueue } from "@/lib/queue/order.queue";
 import { razorpay } from "@/lib/razorpay";
@@ -24,13 +24,23 @@ export async function completeCheckout(userId: string, pincode: string) {
   }
 
   // ✅ PINCODE DELIVERY CHECK
-  const service = await prisma.pincodeService.findUnique({
-    where: { pincode }
-  });
+  const service = await prisma.pincodeZone.findUnique({
+  where: { pincode }
+});
 
-  if (!service || !service.deliveryAvailable) {
-    throw new Error("Delivery not available in this area");
+if (!service) {
+  throw new Error("Delivery not available in this area");
+}
+
+const zone = await prisma.deliveryZone.findUnique({
+  where: {
+    id: service.zoneId
   }
+});
+
+if (!zone || !zone.deliveryAvailable) {
+  throw new Error("Delivery not available in this area");
+}
 
   return await prisma.$transaction(async (tx) => {
 
@@ -118,12 +128,12 @@ export async function completeCheckout(userId: string, pincode: string) {
         }
 
         // credit seller wallet
-        await creditSellerWallet(
-          item.product.sellerId,
-          order.id,
-          item.product.price,
-          item.quantity
-        );
+        await createEscrowTransaction(
+  order.id,
+  item.product.sellerId,
+  sellerRevenue,
+  commission
+);
 
       } finally {
 

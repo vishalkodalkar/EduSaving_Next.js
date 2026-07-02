@@ -1,33 +1,24 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(
+export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await context.params;
+    const { trackingNumber } = await request.json();
 
-    const order = await prisma.order.findUnique({
-      where: { id },
-      include: {
-        items: {
-          include: {
-            product: true,
-          },
-        },
+    const order = await prisma.order.update({
+      where: {
+        id,
+      },
+      data: {
+        status: "SHIPPED",
+        trackingNumber,
+        shippedAt: new Date(),
       },
     });
-
-    if (!order) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Order not found",
-        },
-        { status: 404 }
-      );
-    }
 
     return NextResponse.json({
       success: true,
